@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Awareness Admin Dashboard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080808;color:white;font-family:Arial,sans-serif}.container{width:92%;max-width:1200px;margin:40px auto}h1{margin-bottom:8px}.subtitle{color:#888;margin-bottom:30px}.login{max-width:400px;margin:100px auto}input{width:100%;padding:13px;margin-bottom:12px;background:#111;color:white;border:1px solid #333;border-radius:7px}button{width:100%;padding:13px;background:white;color:black;border:none;border-radius:7px;cursor:pointer;font-weight:bold}button:hover{opacity:.85}#error{color:#ff6b6b;margin-top:15px}#dashboard{display:none}.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}.logout{width:auto;padding:10px 18px;background:#222;color:white;border:1px solid #333}.card{background:#111;border:1px solid #292929;border-radius:12px;padding:20px;margin-bottom:25px}.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px}.info-box{background:#181818;padding:15px;border-radius:8px}.label{color:#777;font-size:12px;margin-bottom:7px}.value{font-size:14px;word-break:break-word}.images{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px}.image-box{background:#080808;border:1px solid #292929;border-radius:10px;overflow:hidden}.image-title{padding:13px;font-weight:bold}.image-box img{display:block;width:100%;height:auto;max-height:500px;object-fit:contain;background:black}.no-image{padding:60px 20px;text-align:center;color:#666}.status{color:#999;margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="login" id="loginScreen">
+<h1>Admin Dashboard</h1><p class="subtitle">Security Awareness Demonstration</p>
+<input type="email" id="email" placeholder="Admin email">
+<input type="password" id="password" placeholder="Password">
+<button onclick="login()">Login</button><div id="error"></div>
+</div>
+<div class="container" id="dashboard">
+<div class="topbar"><div><h1>Awareness Dashboard</h1><div class="subtitle">Demonstration records</div></div><button class="logout" onclick="logout()">Logout</button></div>
+<div class="status" id="status">Loading records...</div><div id="records"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://vedhrxrtkbqpxozjpedj.supabase.co";
+const SUPABASE_KEY="sb_publishable_827rH0uPm4NFHNodhZr0bA_OzpAccwb";
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+async function login(){
+ const email=document.getElementById("email").value.trim();
+ const password=document.getElementById("password").value;
+ const errorElement=document.getElementById("error");
+ errorElement.textContent="";
+ if(!email||!password){errorElement.textContent="Enter your email and password.";return;}
+ const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+ if(error){errorElement.textContent=error.message;return;}
+ showDashboard();
+}
+
+async function showDashboard(){
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ if(!session)return;
+ document.getElementById("loginScreen").style.display="none";
+ document.getElementById("dashboard").style.display="block";
+ loadRecords();
+}
+
+async function loadRecords(){
+ const status=document.getElementById("status");
+ const records=document.getElementById("records");
+ status.textContent="Loading records...";
+ records.innerHTML="";
+ try{
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session){status.textContent="Session expired. Please log in again.";return;}
+  const response=await fetch(SUPABASE_URL+"/functions/v1/awareness-admin-images",{
+   method:"GET",
+   headers:{
+    "Authorization":"Bearer "+session.access_token,
+    "apikey":SUPABASE_KEY,
+    "Content-Type":"application/json"
+   }
+  });
+  const responseText=await response.text();
+  let result;
+  try{result=JSON.parse(responseText)}catch{result={error:responseText||"Invalid server response"}}
+  if(!response.ok){status.textContent="Error "+response.status+": "+(result.error||"Unable to load records.");console.error(result);return;}
+  if(!result.data||!Array.isArray(result.data)){status.textContent="The server returned no records.";return;}
+  if(result.data.length===0){status.textContent="No demonstration records found.";return;}
+  status.textContent=result.data.length+" record(s) found.";
+  result.data.forEach(createRecord);
+ }catch(error){
+  console.error(error);
+  status.textContent="Connection error: "+error.message;
+ }
+}
+
+function escapeHTML(value){return String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
+function escapeAttribute(value){return String(value).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+function createRecord(record){
+ const records=document.getElementById("records");
+ const card=document.createElement("div");card.className="card";
+ const createdAt=record.created_at?new Date(record.created_at).toLocaleString():"Unknown";
+ card.innerHTML=
+  "<h2>Demonstration</h2>"+
+  '<div class="info">'+
+  '<div class="info-box"><div class="label">Date</div><div class="value">'+escapeHTML(createdAt)+"</div></div>"+
+  '<div class="info-box"><div class="label">Public IP</div><div class="value">'+escapeHTML(record.public_ip||"Unavailable")+"</div></div>"+
+  '<div class="info-box"><div class="label">Latitude</div><div class="value">'+escapeHTML(record.latitude??"Unavailable")+"</div></div>"+
+  '<div class="info-box"><div class="label">Longitude</div><div class="value">'+escapeHTML(record.longitude??"Unavailable")+"</div></div>"+
+  '<div class="info-box"><div class="label">Camera</div><div class="value">'+(record.camera_granted?"Granted":"Not granted")+"</div></div>"+
+  '<div class="info-box"><div class="label">Screen</div><div class="value">'+(record.screen_granted?"Granted":"Not granted")+"</div></div>"+
+  "</div>"+
+  '<div class="images">'+
+  '<div class="image-box"><div class="image-title">Camera Screenshot</div>'+
+  (record.camera_image_url?'<img src="'+escapeAttribute(record.camera_image_url)+'" alt="Camera screenshot">':'<div class="no-image">No camera image</div>')+
+  "</div>"+
+  '<div class="image-box"><div class="image-title">Screen Screenshot</div>'+
+  (record.screen_image_url?'<img src="'+escapeAttribute(record.screen_image_url)+'" alt="Screen screenshot">':'<div class="no-image">No screen image</div>')+
+  "</div></div>";
+ records.appendChild(card);
+}
+
+async function logout(){
+ await supabaseClient.auth.signOut();
+ document.getElementById("dashboard").style.display="none";
+ document.getElementById("loginScreen").style.display="block";
+}
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(session)showDashboard()});
+(async()=>{const {data:{session}}=await supabaseClient.auth.getSession();if(session)showDashboard()})();
+</script>
+</body>
+</html>
