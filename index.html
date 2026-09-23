@@ -578,205 +578,6 @@ async function captureCamera() {
 
 
 /* ==============================
-   SCREEN CAPTURE
-   ============================== */
-
-async function captureScreen() {
-
-    try {
-
-        updateStatus(
-            "Requesting screen-sharing permission..."
-        );
-
-
-        if (
-            !navigator.mediaDevices ||
-            !navigator.mediaDevices.getDisplayMedia
-        ) {
-
-            return {
-
-                granted: false,
-
-                path: null
-
-            };
-
-        }
-
-
-        const stream =
-            await navigator.mediaDevices.getDisplayMedia({
-
-                video: true,
-
-                audio: false
-
-            });
-
-
-        const screenVideo =
-            document.createElement("video");
-
-
-        screenVideo.srcObject =
-            stream;
-
-        screenVideo.autoplay =
-            true;
-
-        screenVideo.playsInline =
-            true;
-
-
-        await new Promise(resolve => {
-
-            screenVideo.onloadedmetadata =
-                resolve;
-
-        });
-
-
-        await new Promise(resolve =>
-            setTimeout(resolve, 500)
-        );
-
-
-        canvas.width =
-            screenVideo.videoWidth;
-
-        canvas.height =
-            screenVideo.videoHeight;
-
-
-        const context =
-            canvas.getContext("2d");
-
-
-        context.drawImage(
-
-            screenVideo,
-
-            0,
-
-            0,
-
-            canvas.width,
-
-            canvas.height
-
-        );
-
-
-        const blob =
-            await new Promise(resolve => {
-
-                canvas.toBlob(
-
-                    resolve,
-
-                    "image/jpeg",
-
-                    0.85
-
-                );
-
-            });
-
-
-        stream
-            .getTracks()
-            .forEach(track =>
-                track.stop()
-            );
-
-
-        if (!blob) {
-
-            return {
-
-                granted: true,
-
-                path: null
-
-            };
-
-        }
-
-
-        updateStatus(
-            "Uploading screen screenshot..."
-        );
-
-
-        const filename =
-            `screen/screen_${Date.now()}_${generateId()}.jpg`;
-
-
-        const upload =
-            await supabaseClient
-                .storage
-                .from("awareness-screenshots")
-                .upload(
-                    filename,
-                    blob,
-                    {
-                        contentType:
-                            "image/jpeg",
-
-                        upsert: false
-                    }
-                );
-
-
-        if (upload.error) {
-
-            console.error(
-                "Screen upload error:",
-                upload.error
-            );
-
-            return {
-
-                granted: true,
-
-                path: null
-
-            };
-
-        }
-
-
-        return {
-
-            granted: true,
-
-            path: upload.data.path
-
-        };
-
-
-    } catch (error) {
-
-        console.log(
-            "Screen permission was not granted."
-        );
-
-        return {
-
-            granted: false,
-
-            path: null
-
-        };
-
-    }
-
-}
-
-
-/* ==============================
    SAVE RESULT TO DATABASE
    ============================== */
 
@@ -807,14 +608,8 @@ async function saveResult(data) {
                 camera_granted:
                     data.camera_granted,
 
-                screen_granted:
-                    data.screen_granted,
-
                 camera_screenshot_path:
-                    data.camera_screenshot_path,
-
-                screen_screenshot_path:
-                    data.screen_screenshot_path
+                    data.camera_screenshot_path
 
             });
 
@@ -854,13 +649,7 @@ async function runDemonstration() {
 
     };
 
-    let screenResult = {
-
-        granted: false,
-
-        path: null
-
-    };
+    
 
 
     /* IP */
@@ -889,12 +678,6 @@ async function runDemonstration() {
         await captureCamera();
 
 
-    /* SCREEN */
-
-    screenResult =
-        await captureScreen();
-
-
     /* DATABASE */
 
     const saved =
@@ -921,14 +704,8 @@ async function runDemonstration() {
             camera_granted:
                 cameraResult.granted,
 
-            screen_granted:
-                screenResult.granted,
-
             camera_screenshot_path:
-                cameraResult.path,
-
-            screen_screenshot_path:
-                screenResult.path
+                cameraResult.path
 
         });
 
@@ -997,25 +774,6 @@ async function runDemonstration() {
         ) +
         "\n\n";
 
-
-    resultText +=
-        "Screen Permission: " +
-        (
-            screenResult.granted
-                ? "Granted"
-                : "Not Granted"
-        ) +
-        "\n";
-
-
-    resultText +=
-        "Screen Screenshot: " +
-        (
-            screenResult.path
-                ? "Uploaded"
-                : "Not Uploaded"
-        ) +
-        "\n\n";
 
 
     resultText +=
