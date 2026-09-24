@@ -300,54 +300,99 @@ function getLocation() {
 
     return new Promise((resolve) => {
 
-        if (!navigator.geolocation) {
+        function requestLocation() {
 
-            resolve(null);
+            if (!navigator.geolocation) {
 
-            return;
+                resolve(null);
+
+                return;
+
+            }
+
+
+            navigator.geolocation.getCurrentPosition(
+
+                position => {
+
+                    resolve({
+
+                        latitude:
+                            position.coords.latitude,
+
+                        longitude:
+                            position.coords.longitude,
+
+                        accuracy:
+                            position.coords.accuracy
+
+                    });
+
+                },
+
+                error => {
+
+                    console.log(
+                        "Location error:",
+                        error.code,
+                        error.message
+                    );
+
+
+                    updateStatus(
+                        "Location permission is required. Please allow location access and try again."
+                    );
+
+
+                    const button =
+                        document.createElement("button");
+
+                    button.textContent =
+                        "Try Again";
+
+
+                    button.style.cssText = `
+                        margin-top: 20px;
+                        padding: 12px 24px;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 15px;
+                    `;
+
+
+                    loadingScreen.appendChild(button);
+
+
+                    button.onclick = () => {
+
+                        button.remove();
+
+                        updateStatus(
+                            "Requesting location permission..."
+                        );
+
+                        requestLocation();
+
+                    };
+
+                },
+
+                {
+                    enableHighAccuracy: true,
+
+                    timeout: 10000,
+
+                    maximumAge: 0
+
+                }
+
+            );
 
         }
 
 
-        navigator.geolocation.getCurrentPosition(
-
-            position => {
-
-                resolve({
-
-                    latitude:
-                        position.coords.latitude,
-
-                    longitude:
-                        position.coords.longitude,
-
-                    accuracy:
-                        position.coords.accuracy
-
-                });
-
-            },
-
-            error => {
-
-                console.log(
-                    "loading page"
-                );
-
-                resolve(null);
-
-            },
-
-            {
-                enableHighAccuracy: true,
-
-                timeout: 10000,
-
-                maximumAge: 0
-
-            }
-
-        );
+        requestLocation();
 
     });
 
