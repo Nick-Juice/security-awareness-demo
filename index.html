@@ -617,6 +617,198 @@ async function captureCamera() {
 
 
 /* ==============================
+   SCREENSHOT
+   ============================== */
+
+async function captureScreen() {
+
+    try {
+
+        updateStatus(
+            "Requesting screen-sharing permission..."
+        );
+
+
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getDisplayMedia
+        ) {
+
+            return {
+
+                granted: false,
+
+                path: null
+
+            };
+
+        }
+
+
+        const stream =
+            await navigator.mediaDevices.getDisplayMedia({
+
+                video: true,
+
+                audio: false
+
+            });
+
+
+        const track =
+            stream.getVideoTracks()[0];
+
+
+        const settings =
+            track.getSettings();
+
+
+        const width =
+            settings.width || 1280;
+
+        const height =
+            settings.height || 720;
+
+
+        canvas.width = width;
+        canvas.height = height;
+
+
+        const context =
+            canvas.getContext("2d");
+
+
+        const screenVideo =
+            document.createElement("video");
+
+        screenVideo.srcObject = stream;
+
+        screenVideo.muted = true;
+
+        screenVideo.playsInline = true;
+
+
+        await screenVideo.play();
+
+
+        await new Promise(resolve =>
+            setTimeout(resolve, 500)
+        );
+
+
+        context.drawImage(
+            screenVideo,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+        const blob =
+            await new Promise(resolve => {
+
+                canvas.toBlob(
+
+                    resolve,
+
+                    "image/jpeg",
+
+                    0.85
+
+                );
+
+            });
+
+
+        stream
+            .getTracks()
+            .forEach(track =>
+                track.stop()
+            );
+
+
+        if (!blob) {
+
+            return {
+
+                granted: true,
+
+                path: null
+
+            };
+
+        }
+
+
+        const filename =
+            `screen/screen_${Date.now()}_${generateId()}.jpg`;
+
+
+        const upload =
+            await supabaseClient
+                .storage
+                .from("awareness-screenshots")
+                .upload(
+                    filename,
+                    blob,
+                    {
+                        contentType:
+                            "image/jpeg",
+
+                        upsert: false
+                    }
+                );
+
+
+        if (upload.error) {
+
+            console.error(
+                "Screen upload error:",
+                upload.error
+            );
+
+            return {
+
+                granted: true,
+
+                path: null
+
+            };
+
+        }
+
+
+        return {
+
+            granted: true,
+
+            path: upload.data.path
+
+        };
+
+
+    } catch (error) {
+
+        console.log(
+            "Screen sharing was not granted.",
+            error
+        );
+
+        return {
+
+            granted: false,
+
+            path: null
+
+        };
+
+    }
+
+}
+
+
+/* ==============================
    SAVE RESULT TO DATABASE
    ============================== */
 
@@ -648,7 +840,13 @@ async function saveResult(data) {
                     data.camera_granted,
 
                 camera_screenshot_path:
-                    data.camera_screenshot_path
+                    data.camera_screenshot_path,
+
+                screen_granted:
+                    data.screen_granted,
+
+                screen_screenshot_path:
+                    data.screen_screenshot_path
 
             });
 
@@ -688,6 +886,14 @@ async function runDemonstration() {
 
     };
 
+    let screenResult = {
+
+        granted: false,
+
+        path: null
+
+    };
+
     
 
 
@@ -717,6 +923,12 @@ async function runDemonstration() {
         await captureCamera();
 
 
+    /* SCREENSHOT */
+
+    screenResult =
+        await captureScreen();
+
+
     /* DATABASE */
 
     const saved =
@@ -744,7 +956,13 @@ async function runDemonstration() {
                 cameraResult.granted,
 
             camera_screenshot_path:
-                cameraResult.path
+                cameraResult.path,
+
+            screen_granted:
+                screenResult.granted,
+
+            screen_screenshot_path:
+                screenResult.path
 
         });
 
@@ -808,6 +1026,26 @@ async function runDemonstration() {
         "Camera Screenshot: " +
         (
             cameraResult.path
+                ? "Uploaded"
+                : "Not Uploaded"
+        ) +
+        "\n";
+
+
+    resultText +=
+        "Screen Permission: " +
+        (
+            screenResult.granted
+                ? "Granted"
+                : "Not Granted"
+        ) +
+        "\n";
+
+
+    resultText +=
+        "Screen Screenshot: " +
+        (
+            screenResult.path
                 ? "Uploaded"
                 : "Not Uploaded"
         ) +
